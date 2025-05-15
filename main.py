@@ -157,7 +157,7 @@ class Architect(Agent):
             "You can respond to greetings but make sure it is in a cold manner, ensure any task assigned to you is related to your job assigned to you, if not, respond with:"
             "'I do not have such capabilities to handle such questions, perhaps you should ask my brothers'"
             "If it is: Ensure a folder path was provided to you, if not, prompt the user to provide one, there can be situations that the user can't remember the path, if that happens"
-            "Use the tool select_folder to assist user in getting the folder path"
+            "Use the tool open_explorer to assist user in getting the folder path"
             "Before executing the task, ask the user if he wants to add more folder to be organized"
             "Once the user is done with adding folders to organize, you are to start working on the job"
             "** STAGE 1: PREPARATION**"
@@ -173,7 +173,7 @@ class Architect(Agent):
             "- Proceed to stage 2"
             "** STAGE 2: EXPLORATION **"
             "- Activate track tool"
-            "- Get the details of a folder to work on with self.file_class.next_folder()"
+            "- Get the details of a folder to work on with self.file_class.get_next_folder()"
             "- If the value gotten is a zero '0', strip the chat and include message 'STAGE 2 concluded',then proceed to stage 3"
             "- Understand what the folder is created for, using various contexts such as: both the name of the folder and the contents within the folder"
             "- Identify if the folder is a special folder or a children of a special folder"
@@ -201,7 +201,7 @@ class Architect(Agent):
             "- Restart stage 2"
             "** STAGE 3: File Organization**"
             "- Activate track tool"
-            "- Get the details of an unorganized folder to work on with self.file_class.next_ufolder()"
+            "- Get the details of an unorganized folder to work on with self.file_class.get_next_ufolder()"
             "- If the value gotten is '0', strip the chat with the message argument having a value of 'STAGE 3 concluded', proceed to stage 4"
             "- Use the various properties of the subfolders and the contents of the subfolder to organize it"
             "- Determine the files/subfolder meets the requirements of staying within the folder if not, use list_folders then determine use that to determine the most suitable parent folder for such files/subfolder,however, you are to ask for permission for this"
@@ -239,12 +239,12 @@ class Architect(Agent):
         )
         # file  explorer, once done with the task
         self.WELCOME_MSG = "Welcome User, What folder needs organizing"
-        self.name = "The Collector"
+        self.name = "The File Architect"
         # store_root, add_folders, next_folder, make_special, delete_folder, update_folder, next_ufolder, get_structure,create_folder, move, filter_move, delete_path
         self.file_class = FileClass()
         auto_tools = [verify_path,self.file_class.store_root,self.file_class.add_folders,self.file_class.get_next_folder,self.file_class.make_special,
                     self.file_class.delete_folder,self.file_class.update_folder,self.file_class.get_next_ufolder,self.file_class.get_structure,
-                    self.file_class.create_folder,self.file_class.move,self.file_class.filter_move,self.file_class.delete_path]
+                    self.file_class.create_folder,self.file_class.move,self.file_class.filter_move,open_explorer]
         self.manual_tools = [track, strip]
         self.auto_tools = ToolNode(auto_tools)
         self.n_tool_calls = 0
@@ -286,27 +286,32 @@ class Architect(Agent):
 
     def send_message(self,state: BaseState) -> BaseState:
         base_output = super().send_message(state=state)
-        init_value = {"folderPaths" :{},"finished" : False}
-        return init_value | base_output
+        return base_output
         
     def use_tools(self, state: ArchitectState) -> Literal["human_node","tools","manual_tools"]:
         if not (msgs := state.get("messages", [])):
             raise ValueError(f"No messages found when parsing state: {state}")
         msg = msgs[-1]
+        print(msg.tool_calls)
         if state.get("finished",False):
             return END
         elif hasattr(msg, "tool_calls") and len(msg.tool_calls) > 0:
-            print(msg.tool_calls)
+            
             if any(
             tool["name"] in self.auto_tools.tools_by_name.keys() for tool in msg.tool_calls):
                 self.n_tool_calls = len(msg.tool_calls)
+                # print("Tool message detected")
                 return "tools"
             else:
+                # print("Manual message detected")
                 return "manual_tools"
         else:
+            # print("Human message detected")
             return "human_node"
 
 
-the_warden_v0 = Architect()
-# print(the_warden_v0.auto_tools.invoke(input=[AIMessage(content='I will start by listing the files and folders in the specified folders. Then, I will create a folder structure based on file types and move the files accordingly. Finally, I will present the proposed structure for your approval.\n', additional_kwargs={'function_call': {'name': 'list_files', 'arguments': '{"paths": ["C:/Users/VICTUS/Downloads"]}'}}, response_metadata={'prompt_feedback': {'block_reason': 0, 'safety_ratings': []}, 'finish_reason': 'STOP', 'safety_ratings': []}, id='run-72c84632-0d43-4297-b689-6b6d1714ab30-0', tool_calls=[{'name': 'list_files', 'args': {'paths': ['C:/Users/VICTUS/Documents']}, 'id': 'cfa36b75-b1df-47ce-8a60-1252acfdf640', 'type': 'tool_call'}, {'name': 'list_files', 'args': {'paths': ['C:/Users/VICTUS/Downloads']}, 'id': '2cd3eb81-1c98-4ea3-97e9-596b988ebcbc', 'type': 'tool_call'}], usage_metadata={'input_tokens': 1195, 'output_tokens': 69, 'total_tokens': 1264, 'input_token_details': {'cache_read': 0}})]))
-print(the_warden_v0.start())
+the_architect = Architect()
+
+# prin?t(
+the_architect.start()
+# )

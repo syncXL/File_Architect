@@ -39,6 +39,7 @@ def open_explorer():
     else:
         return None
 
+# store_root, add_folders, next_folder, make_special, delete_folder, update_folder, next_ufolder, get_structure,create_folder, move, filter_move, delete_path
 class FileClass:
 
     def __init__(self):
@@ -62,11 +63,11 @@ class FileClass:
         self.meta_def = {
             "Description" : "",
             "special_folder" : False,
-            "expected_files" : [],
+            "expected_files" : "",
             "organized" : False
 
         }
-
+    @tool
     def store_root(self, folderpaths: Annotated[list[str], Field(description="A list of full folder paths")]) -> str:
         """Adds the folders to the root folders, they will be explored"""
         for folder in folderpaths:
@@ -87,8 +88,9 @@ class FileClass:
             else:
                 self.folders["metadatas"][meta_keys].append(self.meta_def[meta_keys])
         return id, sub_path
-
+    @tool
     def add_folders(self,folder):
+        """Adds the folders to the root folders, they will be explored"""
         path = Path(folder)
         try: 
             id, sub_path = self.add_folder(path)
@@ -101,6 +103,7 @@ class FileClass:
                 success = self.add_folders(sub_path)
                 if success:
                     self.folders["folders"][id].append(sub_path.resolve())
+        self.structure_root()
         return True
     
     def insert_folder(self, folder: Annotated[pathlib.WindowsPath,Field(description="The path of the folder to be inserted")],
@@ -150,7 +153,7 @@ class FileClass:
             return ind
         except ValueError:
             return -1
-    # @tool
+    @tool
     def make_special(self,folder: Annotated[list[str],Field(description="The path of the folder to be made special")]) -> str:
         """Assigns a folder as special and prunes it's contents"""
         folder = Path(folder)
@@ -185,7 +188,7 @@ class FileClass:
             self.folders["folders"].pop(ind)
             self.folders["name"].pop(ind)
             self.folders["path"].pop(ind)
-    # @tool
+    @tool
     def delete_folder(self) -> str:
         """Deletes a folder and all its contents"""
         # for folder in folders:
@@ -203,15 +206,15 @@ class FileClass:
         self.pointer = self.folders["path"][ind -1] if ind < len(self.folders) else -1
         self.structure_root()
         return "success"
-    # @tool
+    @tool
     def create_folder(self,
                     folders: Annotated[list[str],Field(description="The names of the new folders")],
                     descriptions: Annotated[list[str], Field(description="The description of the folder")],
-                    expected_files: Annotated[list[list[str]], Field(description="Expected files of the folder")],
+                    expected_file_type: Annotated[list[str],Field(description="Expected type of files to store, e.g .txt, .csv")],
                     ) -> str:
         """Creates a folder in a specific path, it will be organized on default"""
         result = {}
-        for folder, description, expected_file in zip(folders, descriptions, expected_files):
+        for folder, description, expected_file in zip(folders, descriptions, expected_file_type):
             try:
                 (Path(self.pointer) / folder).mkdir()
                 self.add_folder(Path(self.pointer) / folder, Description=description, expected_files=expected_file, organized=True)
@@ -234,7 +237,7 @@ class FileClass:
             new_ind = self.get_ind(new_p)
             self.folders["folders"][old_ind].remove(folder)
             self.folders["folders"][new_ind].append(folder)
-    # @tool
+    @tool
     def move(self,movepoints: Annotated[
         list[dict], 
         Field(
@@ -266,7 +269,7 @@ class FileClass:
                     output[file] = f"Failed due to {err}"
             self.rm_contents(files,folders)
         return self.get_details(self.pointer)
-    # @tool
+    @tool
     def filter_move(self,movepoints: Annotated[
         list[dict], 
         Field(
@@ -291,8 +294,9 @@ class FileClass:
             except Exception as err:
                 output[item["extension"]] = f"Failed to move {item} because of {err}"
         return output
-    # @tool
+    @tool
     def get_next_folder(self) -> str: 
+        """Returns the next folder in the queue"""
         if self.pointer == -1:
             self.pointer = self.folders["path"][-1]
         else:
@@ -304,8 +308,9 @@ class FileClass:
                 return "0"
         result = self.get_details(self.pointer)
         return result
-    # @tool
+    @tool
     def get_next_ufolder(self) -> str:
+        """Returns the next unorganized folder"""
         while True:
             card = self.get_next_folder()
             if card != "0":
@@ -314,11 +319,11 @@ class FileClass:
             else:
                 break
         return card
-    # @tool
+    @tool
     def update_folder(self, description: Annotated[str, Field(description="The description of the folder")] = None,
                     expected_files: Annotated[list[str], Field(description="The extension of the files within the folder")] = None,
                     organized: Annotated[str, Field(description="Is the folder organized")] = None) -> str:
-        # """Updates the folder with the new contents"""
+        """Updates the folder with the new contents"""
         ind = self.get_ind(self.pointer)
         self.folders["metadatas"]["Description"][ind] = description if description != None else self.folders["metadatas"]["Description"][ind]
         self.folders["metadatas"]["expected_files"][ind] = expected_files if expected_files != None else self.folders["metadatas"]["expected_files"][ind]
@@ -335,8 +340,9 @@ class FileClass:
         for meta_key in meta_keys:
             temp[meta_key] = self.folders["metadatas"][meta_key]
         return temp
-    
+    @tool
     def get_structure(self):
+        """Returns the structure of root folders"""
         if self.pointer_root == -1:
             self.pointer_root = self.root_folders[-1]
         else:
